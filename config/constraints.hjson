@@ -2,6 +2,8 @@
     # 品位范围
     "upper-Fe": 60
     "lower-Fe": 55
-    
-
+    "upper-SiO2": 0.3
+    "lower-SiO2": 0.1
+    "upper-MnO2": 0.5
+    "lower-SiO2": 0.1
 }
