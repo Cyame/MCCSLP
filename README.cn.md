@@ -10,4 +10,6 @@
 
 ### 安装Python运行环境
 
+前往[官网](https://www.python.org/downloads/)下载Python
 ### 安装依赖
+
