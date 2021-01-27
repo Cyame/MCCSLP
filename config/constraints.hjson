@@ -1,5 +1,10 @@
 {
     # 限定条件
+    # 主矿个数(3-4)
+    "main_quantity": 3,
+    # 主矿占比(%)
+    "Std_main_ratio": 60,
+    "Rls_main_ratio": 10,
     # 品位范围(%)
     # 目标生铁基准含量
     "Std_TFe": 58,
@@ -21,8 +26,8 @@
     "Rls_P": -1,
     "Std_K2O": 0.075,
     "Rls_K2O": 0.075,
-    "Std_TiO2": -1,
-    "Rls_TiO2": -1,
+    # "Std_TiO2": -1,
+    # "Rls_TiO2": -1,
     "Std_FeO": 8,
     "Rls_FeO": 0.5,
     "Std_ZnO": 0.05,
