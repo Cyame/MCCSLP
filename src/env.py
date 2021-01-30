@@ -35,17 +35,17 @@ def getPath():
     logging.debug(f"[BASE-PATH]{BASE_DIR}")
     return BASE_DIR
 
-def pathSetup():
-    version = verifyPlatform()
-    if version != None:
-        GLPK_DIR = os.path.join(getPath(),'utils','glpk-4.65',version)
-    if GLPK_DIR not in sys.path:
-        logging.debug("[CONFIRMED] Already Setup.")
-        return
-    else:
-        logging.debug("[NEWLY-SETUP] Appending to the system path.")
-        sys.path.append(GLPK_DIR)
-        return
+# def pathSetup():
+#     version = verifyPlatform()
+#     if version != None:
+#         GLPK_DIR = os.path.join(getPath(),'utils','glpk-4.65',version)
+#     if GLPK_DIR not in sys.path:
+#         logging.debug("[CONFIRMED] Already Setup.")
+#         return
+#     else:
+#         logging.debug("[NEWLY-SETUP] Appending to the system path.")
+#         sys.path.append(GLPK_DIR)
+#         return
 
 
 if __name__ == "__main__":
