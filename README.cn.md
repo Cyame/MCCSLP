@@ -19,7 +19,7 @@
 pip install -r requirements.txt
 ```
 
-如在中国大陆，可以添加`-i https://mirrors.aliyun.com/pypi/simple/`使用阿里云镜像
+如在中国大陆，可添加`-i https://mirrors.aliyun.com/pypi/simple/`以使用阿里云镜像
 
 ## 使用
 
@@ -34,3 +34,7 @@ pip install -r requirements.txt
 ### 运行
 
 在根目录下运行`python src/run.py`以运行程序，相关模型和结论报告将在`workload/`中生成
+
+## 许可
+
+本仓库遵循GPL3.0协议。

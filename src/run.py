@@ -7,6 +7,7 @@ import sys
 import time
 import itertools
 import logging
+import traceback
 
 from auth import *
 from env import *
@@ -79,8 +80,8 @@ def read_mineral(path=MINERAL_PATH):
     return main_mineral, const_content
 
 
-def construct(conrange,main_mineral,const_content):
-    if constr['main_quantity'] <= 6:
+def execute(conrange,main_mineral,const_content):
+    if conrange['main_quantity'] <= 6:
         # CODING
         index = 0
         Result = []
@@ -294,82 +295,84 @@ def construct(conrange,main_mineral,const_content):
                 ingredient_vars[i] for i in content
                 if ('M' in i or 'H' in i or 'C' in i or 'Z' in i)) == 100
 
-            recipe.writeLP(
-                str(f"MODEL-{index}({time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())}).lp"
-                    ))
-    pass
+            recipe.writeMPS(os.path.join(WORKLOAD_PATH,'MPS',
+                f"MODEL-{index}-({time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())}).mps")
+                    )
+            recipe.writeLP(os.path.join(WORKLOAD_PATH,'LP',
+                f"MODEL-{index}-({time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())}).lp")
+                    )
+            
+            recipe.solve()
+            Result[index]["STATUS"] = pulp.LpStatus[recipe.status]
+            Result[index]["RESULT"] = {}
+            for v in recipe.variables():
+                Result[index]["RESULT"][v.name] = v.varValue
+            index += 1
 
+            with open(
+                    os.path.join(WORKLOAD_PATH,f"RESULT({time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())}).txt"),
+                    'w',
+                    encoding='utf8') as output_file:
+                for plan in Result:
+                    output_file.write("\n============================\n")
+                    output_file.write(f"报告编号：{plan['NO']}\n")
+                    output_file.write(f"使用主矿：{plan['MAINS']}\n")
+                    if plan["STATUS"] == "Infeasible":
+                        output_file.write("运行结果：无可行解\n")
+                    elif plan["STATUS"] == "Not Solved":
+                        output_file.write("运行结果：不可解\n")
+                    elif plan["STATUS"] == "Optimal":
+                        output_file.write("运行结果：最优解\n")
+                    elif plan["STATUS"] == "Unbounded":
+                        output_file.write("运行结果：命题不收敛\n")
+                    elif plan["STATUS"] == "Undefined":
+                        output_file.write("运行结果：命题未定义\n")
+                    else:
+                        output_file.write("运行结果：未知\n")
+                        output_file.write("计算时可能发生严重错误，请联系开发者进行处理\n")
 
-def operate(recipe):
-    recipe.solve()
-    Result[index]["STATUS"] = pulp.LpStatus[recipe.status]
-    Result[index]["RESULT"] = {}
-    for v in recipe.variables():
-        Result[index]["RESULT"][v.name] = v.varValue
-    index += 1
+                    if plan["RESULT"] != None:
+                        output_file.write("\n=========配矿结果=========\n\n")
+                        output_file.write("\n##主矿配比##\n")
+                        for i in range(conrange['main_quantity']):
+                            output_file.write(
+                                f"主矿-{plan['MAINS'][i]}: {plan['RESULT'][f'Ingr_M{i}']}\n"
+                            )
 
-    with open(
-            f"RESULT({time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())}).txt",
-            'w',
-            encoding='utf8') as output_file:
-        for plan in Result:
-            output_file.write("\n============================\n")
-            output_file.write(f"报告编号：{plan['NO']}\n")
-            output_file.write(f"使用主矿：{plan['MAINS']}\n")
-            if plan["STATUS"] == "Infeasible":
-                output_file.write("运行结果：无可行解\n")
-            elif plan["STATUS"] == "Not Solved":
-                output_file.write("运行结果：不可解\n")
-            elif plan["STATUS"] == "Optimal":
-                output_file.write("运行结果：最优解\n")
-            elif plan["STATUS"] == "Unbounded":
-                output_file.write("运行结果：命题不收敛\n")
-            elif plan["STATUS"] == "Undefined":
-                output_file.write("运行结果：命题未定义\n")
-            else:
-                output_file.write("运行结果：未知\n")
-                output_file.write("计算时可能发生严重错误，请联系开发者进行处理\n")
-
-            if plan["RESULT"] != None:
-                output_file.write("\n=========配矿结果=========\n\n")
-                output_file.write("\n##主矿配比##\n")
-                for index in range(constr['main_quantity']):
-                    output_file.write(
-                        f"主矿-{plan['MAINS'][index]}: {plan['RESULT'][f'Ingr_M{index}']}\n"
-                    )
-
-                    output_file.write("\n##其他成分##\n")
-                    # H
-                    output_file.write(
-                        f"{const_content['H'][0]}: {plan['RESULT']['Ingr_H']}\n"
-                    )
-                    # C
-                    output_file.write(
-                        f"{const_content['C'][0]}: {plan['RESULT']['Ingr_C']}\n"
-                    )
-                    # Z
-                    output_file.write(
-                        f"{const_content['Z'][0]}: {plan['RESULT']['Ingr_Z']}\n"
-                    )
-                    # A1
-                    output_file.write(
-                        f"{const_content['A1'][0]}: {plan['RESULT']['Ingr_A1']}\n"
-                    )
-                    # A2
-                    output_file.write(
-                        f"{const_content['A2'][0]}: {plan['RESULT']['Ingr_A2']}\n"
-                    )
-                    # JS
-                    output_file.write(
-                        f"{const_content['J'][0]}: {plan['RESULT']['Ingr_J']}\n"
-                    )
-                    # B
-                    output_file.write(
-                        f"{const_content['B'][0]}: {plan['RESULT']['Ingr_B']}\n"
-                    )
-                    output_file.write("\n##综合参数##\n")
-            else:
-                output_file.write("=========解集为空=========\n")
+                            output_file.write("\n##其他成分##\n")
+                            # H
+                            output_file.write(
+                                f"{const_content['H'][0]}: {plan['RESULT']['Ingr_H']}\n"
+                            )
+                            # C
+                            output_file.write(
+                                f"{const_content['C'][0]}: {plan['RESULT']['Ingr_C']}\n"
+                            )
+                            # Z
+                            output_file.write(
+                                f"{const_content['Z'][0]}: {plan['RESULT']['Ingr_Z']}\n"
+                            )
+                            # A1
+                            output_file.write(
+                                f"{const_content['A1'][0]}: {plan['RESULT']['Ingr_A1']}\n"
+                            )
+                            # A2
+                            output_file.write(
+                                f"{const_content['A2'][0]}: {plan['RESULT']['Ingr_A2']}\n"
+                            )
+                            # JS
+                            output_file.write(
+                                f"{const_content['J'][0]}: {plan['RESULT']['Ingr_J']}\n"
+                            )
+                            # B
+                            output_file.write(
+                                f"{const_content['B'][0]}: {plan['RESULT']['Ingr_B']}\n"
+                            )
+                            output_file.write("\n##综合参数##\n")
+                    else:
+                        output_file.write("=========解集为空=========\n")
+    else:
+        raise ImportError("选定主矿个数不受支持。")
 
 
 def authrize(code):
@@ -388,14 +391,21 @@ def run():
         logging.debug("main_mineral = " + str(main_mineral))
         logging.debug("const_content = " + str(const_content))
     except Exception as e:
+        traceback.print_exc()
         logging.fatal("IMPORT FATAL")
         print(e)
-    
+    try:
+        execute(constraint, main_mineral, const_content)
+    except Exception as e:
+        traceback.print_exc()
+        logging.fatal("EXEC FATAL")
+        print(e)
     pass
 
 if __name__ == "__main__":
-    if authrize(sys.argv[1]) or sys.argv[1] == 'admin':
-        run()
-    else:
-        raise AssertionError("验证口令错误，请联系管理员处理")
+    run()
+    # if authrize(sys.argv[1]) or sys.argv[1] == 'admin':
+    #     run()
+    # else:
+    #     raise AssertionError("验证口令错误，请联系管理员处理")
     pass
