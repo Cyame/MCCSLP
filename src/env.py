@@ -6,6 +6,7 @@ import logging
 logging.getLogger().setLevel(logging.DEBUG)
 #logging.getLogger().setLevel(logging.INFO)
 
+
 def verifyPlatform():
     thisPlatform = platform.architecture()
     if thisPlatform[1] != "WindowsPE":
@@ -30,10 +31,12 @@ def verifyPlatform():
             )
             return None
 
+
 def getPath():
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     logging.debug(f"[BASE-PATH]{BASE_DIR}")
     return BASE_DIR
+
 
 # def pathSetup():
 #     version = verifyPlatform()
@@ -46,7 +49,6 @@ def getPath():
 #         logging.debug("[NEWLY-SETUP] Appending to the system path.")
 #         sys.path.append(GLPK_DIR)
 #         return
-
 
 if __name__ == "__main__":
     #getPath()

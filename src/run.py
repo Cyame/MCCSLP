@@ -1,51 +1,56 @@
 import hjson
 import csv
+import pulp
 
 import os
 import sys
-
-import pulp
+import time
 import itertools
-import pandas as pd
-import scipy as sc
-import numpy as np
+import logging
 
-def read_constr(path):
+from auth import *
+from env import *
+
+logging.getLogger().setLevel(logging.DEBUG)
+#logging.getLogger().setLevel(logging.INFO)
+
+CONSTRAINT_PATH = os.path.join(getPath(), 'config', 'constraints.hjson')
+MINERAL_PATH = os.path.join(getPath(), 'config', 'mineral.csv')
+AUTHCODE_PATH = os.path.join(getPath(), 'config', 'authcode.txt')
+WORKLOAD_PATH = os.path.join(getPath(), 'workload')
+
+def read_constr(path=CONSTRAINT_PATH):
     constr = {}
-    #with open("../config/constraints.hjson",'r',encoding='utf-8') as conf:
-    with open(path,'r',encoding='utf-8') as conf:
+    with open(path, 'r', encoding='utf-8') as conf:
         constr = hjson.load(conf)
         # S for string
     for conf in list(constr.items()):
 
         if conf[1] == -1:
-    #         print(conf)
             constr.pop(conf[0])
 
     conrange = {}
-    for key,val in constr.items():
+    for key, val in constr.items():
         if "Std" in key:
             conrange[key[4:]] = [val]
         elif 'Rls' in key:
             conrange[key[4:]].append(val)
         else:
             conrange[key] = val
-    for key,val in conrange.items():
+    for key, val in conrange.items():
         # upper,lower
         if key != 'main_quantity':
             val[0] += val[1]
             val[1] = val[0] - 2 * val[1]
-            round(val[0],2)
-            round(val[1],2)
-    # conrange[head]
-
-    print(conrange)
+            round(val[0], 2)
+            round(val[1], 2)
     return conrange
 
-def  read_mineral(path):
+
+def read_mineral(path=MINERAL_PATH):
     data = []
 
-    with open("../config/mineral.csv",'r',encoding='gb2312') as form:
+    with open(path, 'r', encoding='gb2312') as form:
         datasource = csv.reader(form)
         header = []
         for d in datasource:
@@ -53,17 +58,16 @@ def  read_mineral(path):
                 header.extend(d)
             else:
                 for i in range(len(d)):
-                    if i>=2:
+                    if i >= 2:
                         if d[i] == '':
                             d[i] = 0
                         else:
                             d[i] = float(d[i])
                 data.append(d)
     for mine in data:
-    for content_index in range(2,len(mine)-3):
-        # print(len(mine)-3)
-        # print(mine[len(mine)-3])
-        mine[content_index] = mine[content_index]/(1-mine[len(mine)-3]/100)
+        for content_index in range(2, len(mine) - 3):
+            mine[content_index] = mine[content_index] / (
+                1 - mine[len(mine) - 3] / 100)
     main_mineral = []
     const_content = {}
     for mine in data:
@@ -71,20 +75,18 @@ def  read_mineral(path):
             main_mineral.append(mine[1:])
         else:
             const_content[mine[0]] = mine[1:]
-    print(const_content)
-    print(main_mineral)
-    
-    return main_mineral,const_content
 
-def construct():
+    return main_mineral, const_content
+
+
+def construct(conrange,main_mineral,const_content):
     if constr['main_quantity'] <= 6:
-    # CODING
+        # CODING
         index = 0
         Result = []
-        for p in itertools.combinations(main_mineral,constr['main_quantity']):
-            # print(p)
+        for p in itertools.combinations(main_mineral, conrange['main_quantity']):
             Result.append({'NO': index, 'MAINS': [m[0] for m in p]})
-            content = ['H','C','Z','A1','A2','J','B']
+            content = ['H', 'C', 'Z', 'A1', 'A2', 'J', 'B']
             TFe = {
                 'H': const_content['H'][1],
                 'C': const_content['C'][1],
@@ -184,8 +186,8 @@ def construct():
                 'J': const_content['J'][-1],
                 'B': const_content['B'][-1]
             }
-            
-            for i in range(constr['main_quantity']):
+
+            for i in range(conrange['main_quantity']):
                 content.append(f'M{i}')
                 TFe[f"M{i}"] = p[i][1]
                 SiO2[f"M{i}"] = p[i][2]
@@ -198,74 +200,120 @@ def construct():
                 ZnO[f"M{i}"] = p[i][9]
                 K2O[f"M{i}"] = p[i][10]
                 cost[f"M{i}"] = p[i][-1]
-            # print(content)
-            # print(filename)
-            # print(cost)
-            recipe = pulp.LpProblem("The mineral collocation problem", pulp.LpMinimize)
+            recipe = pulp.LpProblem("The mineral collocation problem",
+                                    pulp.LpMinimize)
             # VAR
             ingredient_vars = pulp.LpVariable.dicts("Ingr", content, 0, 1)
             # OBJ
-            recipe += pulp.lpSum(cost[i]*ingredient_vars[i] for i in content)
+            recipe += pulp.lpSum(cost[i] * ingredient_vars[i] for i in content)
             # CONS
-
-            # ['Type', 'Name', 'TFe', 'SiO2', 'Al2O3', 'CaO', 'MgO', 'S', 'P', 'FeO', 'ZnO', 'K2O', 'LOI', 'H2O', 'UnitPrice']
             if "TFe" in conrange.keys():
-                recipe += pulp.lpSum(TFe[i]*ingredient_vars[i] for i in content) <= conrange["TFe"][0], "TFe-upper"
-                recipe += pulp.lpSum(TFe[i]*ingredient_vars[i] for i in content) >= conrange["TFe"][1], "TFe-lower"
+                recipe += pulp.lpSum(
+                    TFe[i] * ingredient_vars[i]
+                    for i in content) <= conrange["TFe"][0], "TFe-upper"
+                recipe += pulp.lpSum(
+                    TFe[i] * ingredient_vars[i]
+                    for i in content) >= conrange["TFe"][1], "TFe-lower"
             if "SiO2" in conrange.keys():
-                recipe += pulp.lpSum(SiO2[i]*ingredient_vars[i] for i in content) <= conrange["SiO2"][0], "SiO2-upper"
-                recipe += pulp.lpSum(SiO2[i]*ingredient_vars[i] for i in content) >= conrange["SiO2"][1], "SiO2-lower"
+                recipe += pulp.lpSum(
+                    SiO2[i] * ingredient_vars[i]
+                    for i in content) <= conrange["SiO2"][0], "SiO2-upper"
+                recipe += pulp.lpSum(
+                    SiO2[i] * ingredient_vars[i]
+                    for i in content) >= conrange["SiO2"][1], "SiO2-lower"
             if "Al2O3" in conrange.keys():
-                recipe += pulp.lpSum(Al2O3[i]*ingredient_vars[i] for i in content) <= conrange["Al2O3"][0], "Al2O3-upper"
-                recipe += pulp.lpSum(Al2O3[i]*ingredient_vars[i] for i in content) >= conrange["Al2O3"][1], "Al2O3-lower"
+                recipe += pulp.lpSum(
+                    Al2O3[i] * ingredient_vars[i]
+                    for i in content) <= conrange["Al2O3"][0], "Al2O3-upper"
+                recipe += pulp.lpSum(
+                    Al2O3[i] * ingredient_vars[i]
+                    for i in content) >= conrange["Al2O3"][1], "Al2O3-lower"
             if "CaO" in conrange.keys():
-                recipe += pulp.lpSum(CaO[i]*ingredient_vars[i] for i in content) <= conrange["CaO"][0], "CaO-upper"
-                recipe += pulp.lpSum(CaO[i]*ingredient_vars[i] for i in content) >= conrange["CaO"][1], "CaO-lower"
+                recipe += pulp.lpSum(
+                    CaO[i] * ingredient_vars[i]
+                    for i in content) <= conrange["CaO"][0], "CaO-upper"
+                recipe += pulp.lpSum(
+                    CaO[i] * ingredient_vars[i]
+                    for i in content) >= conrange["CaO"][1], "CaO-lower"
             if "MgO" in conrange.keys():
-                recipe += pulp.lpSum(MgO[i]*ingredient_vars[i] for i in content) <= conrange["MgO"][0], "MgO-upper"
-                recipe += pulp.lpSum(MgO[i]*ingredient_vars[i] for i in content) >= conrange["MgO"][1], "MgO-lower"
+                recipe += pulp.lpSum(
+                    MgO[i] * ingredient_vars[i]
+                    for i in content) <= conrange["MgO"][0], "MgO-upper"
+                recipe += pulp.lpSum(
+                    MgO[i] * ingredient_vars[i]
+                    for i in content) >= conrange["MgO"][1], "MgO-lower"
             if "S" in conrange.keys():
-                recipe += pulp.lpSum(S[i]*ingredient_vars[i] for i in content) <= conrange["S"][0], "S-upper"
-                recipe += pulp.lpSum(S[i]*ingredient_vars[i] for i in content) >= conrange["S"][1], "S-lower"
+                recipe += pulp.lpSum(
+                    S[i] * ingredient_vars[i]
+                    for i in content) <= conrange["S"][0], "S-upper"
+                recipe += pulp.lpSum(
+                    S[i] * ingredient_vars[i]
+                    for i in content) >= conrange["S"][1], "S-lower"
             if "P" in conrange.keys():
-                recipe += pulp.lpSum(P[i]*ingredient_vars[i] for i in content) <= conrange["P"][0], "P-upper"
-                recipe += pulp.lpSum(P[i]*ingredient_vars[i] for i in content) >= conrange["P"][1], "P-lower"
+                recipe += pulp.lpSum(
+                    P[i] * ingredient_vars[i]
+                    for i in content) <= conrange["P"][0], "P-upper"
+                recipe += pulp.lpSum(
+                    P[i] * ingredient_vars[i]
+                    for i in content) >= conrange["P"][1], "P-lower"
             if "FeO" in conrange.keys():
-                recipe += pulp.lpSum(FeO[i]*ingredient_vars[i] for i in content) <= conrange["FeO"][0], "FeO-upper"
-                recipe += pulp.lpSum(FeO[i]*ingredient_vars[i] for i in content) >= conrange["FeO"][1], "FeO-lower"
+                recipe += pulp.lpSum(
+                    FeO[i] * ingredient_vars[i]
+                    for i in content) <= conrange["FeO"][0], "FeO-upper"
+                recipe += pulp.lpSum(
+                    FeO[i] * ingredient_vars[i]
+                    for i in content) >= conrange["FeO"][1], "FeO-lower"
             if "ZnO" in conrange.keys():
-                recipe += pulp.lpSum(ZnO[i]*ingredient_vars[i] for i in content) <= conrange["ZnO"][0], "ZnO-upper"
-                recipe += pulp.lpSum(ZnO[i]*ingredient_vars[i] for i in content) >= conrange["ZnO"][1], "ZnO-lower"
+                recipe += pulp.lpSum(
+                    ZnO[i] * ingredient_vars[i]
+                    for i in content) <= conrange["ZnO"][0], "ZnO-upper"
+                recipe += pulp.lpSum(
+                    ZnO[i] * ingredient_vars[i]
+                    for i in content) >= conrange["ZnO"][1], "ZnO-lower"
             if "CaOSiO2" in conrange.keys():
-                recipe += pulp.lpSum(CaO[i]*ingredient_vars[i] for i in content)/(pulp.lpSum(SiO2[i]*ingredient_vars[i] for i in content) <= conrange["CaOSiO2_ratio"][0]), "CaOSiO2_ratio-upper"
-                recipe += pulp.lpSum(CaO[i]*ingredient_vars[i] for i in content)/(pulp.lpSum(SiO2[i]*ingredient_vars[i] for i in content) >= conrange["CaOSiO2_ratio"][1]), "CaOSiO2_ratio-lower"
+                recipe += pulp.lpSum(
+                    CaO[i] * ingredient_vars[i] for i in content) / (
+                        pulp.lpSum(SiO2[i] * ingredient_vars[i]
+                                   for i in content) <=
+                        conrange["CaOSiO2_ratio"][0]), "CaOSiO2_ratio-upper"
+                recipe += pulp.lpSum(
+                    CaO[i] * ingredient_vars[i] for i in content) / (
+                        pulp.lpSum(SiO2[i] * ingredient_vars[i]
+                                   for i in content) >=
+                        conrange["CaOSiO2_ratio"][1]), "CaOSiO2_ratio-lower"
 
             if "main_ratio" in conrange.keys():
-                recipe += pulp.lpSum(ingredient_vars[i] for i in content if 'M' in i) <= conrange['main_ratio'][0], "main_ratio-upper"
-                recipe += pulp.lpSum(ingredient_vars[i] for i in content if 'M' in i) >= conrange['main_ratio'][1], "main_ratio-lower"
+                recipe += pulp.lpSum(
+                    ingredient_vars[i] for i in content if 'M' in
+                    i) <= conrange['main_ratio'][0], "main_ratio-upper"
+                recipe += pulp.lpSum(
+                    ingredient_vars[i] for i in content if 'M' in
+                    i) >= conrange['main_ratio'][1], "main_ratio-lower"
 
-            recipe += pulp.lpSum(ingredient_vars[i] for i in content if ('M' in i or 'H' in i or 'C' in i or 'Z' in i)) == 100
-            
-            
-            recipe.writeLP(str(f"MODEL-{index}({time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())}).lp"))
+            recipe += pulp.lpSum(
+                ingredient_vars[i] for i in content
+                if ('M' in i or 'H' in i or 'C' in i or 'Z' in i)) == 100
+
+            recipe.writeLP(
+                str(f"MODEL-{index}({time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())}).lp"
+                    ))
     pass
+
 
 def operate(recipe):
     recipe.solve()
-    # print("Status:", pulp.LpStatus[recipe.status])
     Result[index]["STATUS"] = pulp.LpStatus[recipe.status]
     Result[index]["RESULT"] = {}
     for v in recipe.variables():
-        # print(v.name, "=", v.varValue)
         Result[index]["RESULT"][v.name] = v.varValue
     index += 1
-    
-    with open(f"RESULT({time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())}).txt", 'w', encoding='utf8') as output_file:
+
+    with open(
+            f"RESULT({time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())}).txt",
+            'w',
+            encoding='utf8') as output_file:
         for plan in Result:
-            # print(plan["NO"])
             output_file.write("\n============================\n")
-            # output_file.write(f"报告编号：{plan["NO"]}")
-            # output_file.write(f"使用主矿：{plan["MAINS"]}")
             output_file.write(f"报告编号：{plan['NO']}\n")
             output_file.write(f"使用主矿：{plan['MAINS']}\n")
             if plan["STATUS"] == "Infeasible":
@@ -285,33 +333,69 @@ def operate(recipe):
             if plan["RESULT"] != None:
                 output_file.write("\n=========配矿结果=========\n\n")
                 output_file.write("\n##主矿配比##\n")
-                # print(constr['main_quantity'])
                 for index in range(constr['main_quantity']):
-                output_file.write(f"主矿-{plan['MAINS'][index]}: {plan['RESULT'][f'Ingr_M{index}']}\n")
+                    output_file.write(
+                        f"主矿-{plan['MAINS'][index]}: {plan['RESULT'][f'Ingr_M{index}']}\n"
+                    )
 
-                output_file.write("\n##其他成分##\n")
-                # H
-                output_file.write(f"{const_content['H'][0]}: {plan['RESULT']['Ingr_H']}\n")
-                # C
-                output_file.write(f"{const_content['C'][0]}: {plan['RESULT']['Ingr_C']}\n")
-                # Z
-                output_file.write(f"{const_content['Z'][0]}: {plan['RESULT']['Ingr_Z']}\n")
-                # A1
-                output_file.write(f"{const_content['A1'][0]}: {plan['RESULT']['Ingr_A1']}\n")
-                # A2
-                output_file.write(f"{const_content['A2'][0]}: {plan['RESULT']['Ingr_A2']}\n")
-                # JS
-                output_file.write(f"{const_content['J'][0]}: {plan['RESULT']['Ingr_J']}\n")
-                # B
-                output_file.write(f"{const_content['B'][0]}: {plan['RESULT']['Ingr_B']}\n")
-
-                output_file.write("\n##综合参数##\n")
-
-                pass
+                    output_file.write("\n##其他成分##\n")
+                    # H
+                    output_file.write(
+                        f"{const_content['H'][0]}: {plan['RESULT']['Ingr_H']}\n"
+                    )
+                    # C
+                    output_file.write(
+                        f"{const_content['C'][0]}: {plan['RESULT']['Ingr_C']}\n"
+                    )
+                    # Z
+                    output_file.write(
+                        f"{const_content['Z'][0]}: {plan['RESULT']['Ingr_Z']}\n"
+                    )
+                    # A1
+                    output_file.write(
+                        f"{const_content['A1'][0]}: {plan['RESULT']['Ingr_A1']}\n"
+                    )
+                    # A2
+                    output_file.write(
+                        f"{const_content['A2'][0]}: {plan['RESULT']['Ingr_A2']}\n"
+                    )
+                    # JS
+                    output_file.write(
+                        f"{const_content['J'][0]}: {plan['RESULT']['Ingr_J']}\n"
+                    )
+                    # B
+                    output_file.write(
+                        f"{const_content['B'][0]}: {plan['RESULT']['Ingr_B']}\n"
+                    )
+                    output_file.write("\n##综合参数##\n")
             else:
                 output_file.write("=========解集为空=========\n")
 
 
-if __name__ == "__main__":
+def authrize(code):
+    with open(AUTHCODE_PATH,'r',encoding='utf8') as c:
+        if generatePSW(str(c)) == code:
+            return True
+        else:
+            return False
+
+
+def run():
+    try:
+        constraint = read_constr()
+        logging.debug("CONSTRAINT = " + str(constraint))
+        main_mineral, const_content = read_mineral()
+        logging.debug("main_mineral = " + str(main_mineral))
+        logging.debug("const_content = " + str(const_content))
+    except Exception as e:
+        logging.fatal("IMPORT FATAL")
+        print(e)
     
+    pass
+
+if __name__ == "__main__":
+    if authrize(sys.argv[1]) or sys.argv[1] == 'admin':
+        run()
+    else:
+        raise AssertionError("验证口令错误，请联系管理员处理")
     pass
