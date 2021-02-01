@@ -309,68 +309,68 @@ def execute(conrange,main_mineral,const_content):
                 Result[index]["RESULT"][v.name] = v.varValue
             index += 1
 
-            with open(
-                    os.path.join(WORKLOAD_PATH,f"RESULT({time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())}).txt"),
-                    'w',
-                    encoding='utf8') as output_file:
-                for plan in Result:
-                    output_file.write("\n============================\n")
-                    output_file.write(f"报告编号：{plan['NO']}\n")
-                    output_file.write(f"使用主矿：{plan['MAINS']}\n")
-                    if plan["STATUS"] == "Infeasible":
-                        output_file.write("运行结果：无可行解\n")
-                    elif plan["STATUS"] == "Not Solved":
-                        output_file.write("运行结果：不可解\n")
-                    elif plan["STATUS"] == "Optimal":
-                        output_file.write("运行结果：最优解\n")
-                    elif plan["STATUS"] == "Unbounded":
-                        output_file.write("运行结果：命题不收敛\n")
-                    elif plan["STATUS"] == "Undefined":
-                        output_file.write("运行结果：命题未定义\n")
-                    else:
-                        output_file.write("运行结果：未知\n")
-                        output_file.write("计算时可能发生严重错误，请联系开发者进行处理\n")
+        with open(
+                os.path.join(WORKLOAD_PATH,f"RESULT({time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())}).txt"),
+                'w',
+                encoding='utf8') as output_file:
+            for plan in Result:
+                output_file.write("\n============================\n")
+                output_file.write(f"报告编号：{plan['NO']}\n")
+                output_file.write(f"使用主矿：{plan['MAINS']}\n")
+                if plan["STATUS"] == "Infeasible":
+                    output_file.write("运行结果：无可行解\n")
+                elif plan["STATUS"] == "Not Solved":
+                    output_file.write("运行结果：不可解\n")
+                elif plan["STATUS"] == "Optimal":
+                    output_file.write("运行结果：最优解\n")
+                elif plan["STATUS"] == "Unbounded":
+                    output_file.write("运行结果：命题不收敛\n")
+                elif plan["STATUS"] == "Undefined":
+                    output_file.write("运行结果：命题未定义\n")
+                else:
+                    output_file.write("运行结果：未知\n")
+                    output_file.write("计算时可能发生严重错误，请联系开发者进行处理\n")
 
-                    if plan["RESULT"] != None:
-                        output_file.write("\n=========配矿结果=========\n\n")
-                        output_file.write("\n##主矿配比##\n")
-                        for i in range(conrange['main_quantity']):
-                            output_file.write(
-                                f"主矿-{plan['MAINS'][i]}: {plan['RESULT'][f'Ingr_M{i}']}\n"
-                            )
+                if plan["RESULT"] != None:
+                    output_file.write("\n=========配矿结果=========\n\n")
+                    output_file.write("\n##主矿配比##\n")
+                    for i in range(conrange['main_quantity']):
+                        output_file.write(
+                            f"主矿-{plan['MAINS'][i]}: {plan['RESULT'][f'Ingr_M{i}']}\n"
+                        )
 
-                            output_file.write("\n##其他成分##\n")
-                            # H
-                            output_file.write(
-                                f"{const_content['H'][0]}: {plan['RESULT']['Ingr_H']}\n"
-                            )
-                            # C
-                            output_file.write(
-                                f"{const_content['C'][0]}: {plan['RESULT']['Ingr_C']}\n"
-                            )
-                            # Z
-                            output_file.write(
-                                f"{const_content['Z'][0]}: {plan['RESULT']['Ingr_Z']}\n"
-                            )
-                            # A1
-                            output_file.write(
-                                f"{const_content['A1'][0]}: {plan['RESULT']['Ingr_A1']}\n"
-                            )
-                            # A2
-                            output_file.write(
-                                f"{const_content['A2'][0]}: {plan['RESULT']['Ingr_A2']}\n"
-                            )
-                            # JS
-                            output_file.write(
-                                f"{const_content['J'][0]}: {plan['RESULT']['Ingr_J']}\n"
-                            )
-                            # B
-                            output_file.write(
-                                f"{const_content['B'][0]}: {plan['RESULT']['Ingr_B']}\n"
-                            )
-                            output_file.write("\n##综合参数##\n")
-                    else:
-                        output_file.write("=========解集为空=========\n")
+                        output_file.write("\n##其他成分##\n")
+                        # H
+                        output_file.write(
+                            f"{const_content['H'][0]}: {plan['RESULT']['Ingr_H']}\n"
+                        )
+                        # C
+                        output_file.write(
+                            f"{const_content['C'][0]}: {plan['RESULT']['Ingr_C']}\n"
+                        )
+                        # Z
+                        output_file.write(
+                            f"{const_content['Z'][0]}: {plan['RESULT']['Ingr_Z']}\n"
+                        )
+                        # A1
+                        output_file.write(
+                            f"{const_content['A1'][0]}: {plan['RESULT']['Ingr_A1']}\n"
+                        )
+                        # A2
+                        output_file.write(
+                            f"{const_content['A2'][0]}: {plan['RESULT']['Ingr_A2']}\n"
+                        )
+                        # JS
+                        output_file.write(
+                            f"{const_content['J'][0]}: {plan['RESULT']['Ingr_J']}\n"
+                        )
+                        # B
+                        output_file.write(
+                            f"{const_content['B'][0]}: {plan['RESULT']['Ingr_B']}\n"
+                        )
+                        output_file.write("\n##综合参数##\n")
+                else:
+                    output_file.write("=========解集为空=========\n")
     else:
         raise ImportError("选定主矿个数不受支持。")
 

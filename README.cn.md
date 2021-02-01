@@ -8,10 +8,12 @@
 
 请依次完成下述步骤以完成安装。
 
-### 安装Python运行环境
+### 方案一：在本地环境中运行
+
+#### 安装Python运行环境
 
 前往[官网](https://www.python.org/downloads/)下载Python
-### 安装依赖
+#### 安装依赖
 
 运行
 
@@ -21,6 +23,29 @@ pip install -r requirements.txt
 
 如在中国大陆，可添加`-i https://mirrors.aliyun.com/pypi/simple/`以使用阿里云镜像
 
+### 方案二：在虚拟环境中运行
+
+#### 安装Python
+
+前往官网下载Python3.7+
+
+#### 安装虚拟环境支持
+
+```
+pip install virtualenv
+```
+
+#### 进入虚拟环境
+
+```
+source env/Scripts/activate
+```
+
+或(CMD)
+
+```
+env/Scripts/activate
+```
 ## 使用
 
 ### 修改参数
