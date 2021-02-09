@@ -204,7 +204,7 @@ def execute(conrange,main_mineral,const_content):
             recipe = pulp.LpProblem("The mineral collocation problem",
                                     pulp.LpMinimize)
             # VAR
-            ingredient_vars = pulp.LpVariable.dicts("Ingr", content, 0, 1)
+            ingredient_vars = pulp.LpVariable.dicts("Ingr", content, lowBound=0, upBound=1)
             # OBJ
             recipe += pulp.lpSum(cost[i] * ingredient_vars[i] for i in content)
             # CONS
@@ -305,6 +305,10 @@ def execute(conrange,main_mineral,const_content):
             recipe.solve()
             Result[index]["STATUS"] = pulp.LpStatus[recipe.status]
             Result[index]["RESULT"] = {}
+            Result[index]["OBJ"] = pulp.value(recipe.objective)
+            Result[index]["CONS"] = {}
+            for k,v in recipe.constraints.items():
+                Result[index]["CONS"][k] = pulp.value(v)
             for v in recipe.variables():
                 Result[index]["RESULT"][v.name] = v.varValue
             index += 1
@@ -314,7 +318,7 @@ def execute(conrange,main_mineral,const_content):
                 'w',
                 encoding='utf8') as output_file:
             for plan in Result:
-                output_file.write("\n============================\n")
+                output_file.write("\n============================\n\n")
                 output_file.write(f"报告编号：{plan['NO']}\n")
                 output_file.write(f"使用主矿：{plan['MAINS']}\n")
                 if plan["STATUS"] == "Infeasible":
@@ -339,36 +343,39 @@ def execute(conrange,main_mineral,const_content):
                             f"主矿-{plan['MAINS'][i]}: {plan['RESULT'][f'Ingr_M{i}']}\n"
                         )
 
-                        output_file.write("\n##其他成分##\n")
-                        # H
-                        output_file.write(
-                            f"{const_content['H'][0]}: {plan['RESULT']['Ingr_H']}\n"
-                        )
-                        # C
-                        output_file.write(
-                            f"{const_content['C'][0]}: {plan['RESULT']['Ingr_C']}\n"
-                        )
-                        # Z
-                        output_file.write(
-                            f"{const_content['Z'][0]}: {plan['RESULT']['Ingr_Z']}\n"
-                        )
-                        # A1
-                        output_file.write(
-                            f"{const_content['A1'][0]}: {plan['RESULT']['Ingr_A1']}\n"
-                        )
-                        # A2
-                        output_file.write(
-                            f"{const_content['A2'][0]}: {plan['RESULT']['Ingr_A2']}\n"
-                        )
-                        # JS
-                        output_file.write(
-                            f"{const_content['J'][0]}: {plan['RESULT']['Ingr_J']}\n"
-                        )
-                        # B
-                        output_file.write(
-                            f"{const_content['B'][0]}: {plan['RESULT']['Ingr_B']}\n"
-                        )
-                        output_file.write("\n##综合参数##\n")
+                    output_file.write("\n##其他成分##\n")
+                    # H
+                    output_file.write(
+                        f"{const_content['H'][0]}: {plan['RESULT']['Ingr_H']}\n"
+                    )
+                    # C
+                    output_file.write(
+                        f"{const_content['C'][0]}: {plan['RESULT']['Ingr_C']}\n"
+                    )
+                    # Z
+                    output_file.write(
+                        f"{const_content['Z'][0]}: {plan['RESULT']['Ingr_Z']}\n"
+                    )
+                    # A1
+                    output_file.write(
+                        f"{const_content['A1'][0]}: {plan['RESULT']['Ingr_A1']}\n"
+                    )
+                    # A2
+                    output_file.write(
+                        f"{const_content['A2'][0]}: {plan['RESULT']['Ingr_A2']}\n"
+                    )
+                    # JS
+                    output_file.write(
+                        f"{const_content['J'][0]}: {plan['RESULT']['Ingr_J']}\n"
+                    )
+                    # B
+                    output_file.write(
+                        f"{const_content['B'][0]}: {plan['RESULT']['Ingr_B']}\n"
+                    )
+                    output_file.write("\n##综合参数##\n")
+
+                    output_file.write(f"吨矿成本: {plan['OBJ']}")
+                    output_file.write(f"{plan['CONS']}")
                 else:
                     output_file.write("=========解集为空=========\n")
     else:

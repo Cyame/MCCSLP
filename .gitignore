@@ -131,3 +131,7 @@ dmypy.json
 
 # Temp Files
 *.lp
+*.mps
+workload/*.txt
+*.exe
+*.bat
